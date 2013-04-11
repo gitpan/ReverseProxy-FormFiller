@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               ReverseProxy-FormFiller
-version:            0.1
+version:            0.2
 abstract:           Let Apache fill and submit any html form in place of the user
 author:
     - FX Deltombe <fxdeltombe@gmail.com>

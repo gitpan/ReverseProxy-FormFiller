@@ -3,3 +3,5 @@ Revision history for ReverseProxy-FormFiller
 0.1    2013/04/10
         First version
 
+0.2    2013/04/11
+        Fix bug with content-length, update doc

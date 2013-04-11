@@ -5,11 +5,10 @@ use Apache2::Filter;
 use Apache2::Const -compile => qw(:common);
 use Apache2::RequestUtil;
 use Apache2::RequestRec;
-use Apache2::Response;
 use Apache2::Log;
 use URI::Escape;
 
-our $VERSION = '0.1';
+our $VERSION = '0.2';
 
 my $globalParams;
 
@@ -101,7 +100,6 @@ sub output {
         $f->r->subprocess_env;
         my $js = &js($params);
         $body =~ s/(<\/head>)/$js$1/i or $body =~ s/(<body>)/$1$js/i;
-        $f->r->set_content_length(length $body);
         $f->print($body);
     }
     return Apache2::Const::OK;
@@ -145,13 +143,15 @@ ReverseProxy::FormFiller - Let Apache fill and submit any html form in place of 
 
 =head1 VERSION
 
-Version 0.1
+Version 0.2
 
 =head1 SYNOPSIS
 
 ReverseProxy::FormFiller makes an Apache server, positioned as a frontal server or as a reverse-proxy, fill and (possibly) submit html forms in place of users.
 
-This is particularly intended for authentication forms, if you want users to be authenticated with some account, but if you don't want them to know and type any password. But it also works with any html form.
+This is particularly intended for authentication forms, if you want users to be authenticated with some account, but if you don't want them to know and type any password. But it also works with any html POST form.
+
+ReverseProxy::FormFiller is based on Apache2 mod_perl filters. So, you have to enable mod_perl.
 
 =head2 Basic Example
 
@@ -177,6 +177,7 @@ create an Apache virtualhost called myauth.example.com, looking like :
 
     <Location /login.php>
       RequestHeader unset Accept-Encoding
+      Header        unset Content-Length
       PerlOutputFilterHandler ReverseProxy::FormFiller::output
     </Location>
 
@@ -267,16 +268,23 @@ When Apache has received the response from the remote server (if Apache is used 
 Actually, this is done not by directly overwriting the form, but by including some javascript filling and submitting the form.
 
 This is done by the directive
+
   PerlOutputFilterHandler ReverseProxy::FormFiller::output
 
 Besides, ReverseProxy::FormFiller::output can not (or not yet) read zipped contents, so HTTP request headers "Content-encoding" have to be removed. This is done by the directive
+
   RequestHeader unset Accept-Encoding
+
+And ReverseProxy::FormFiller::output can not (or not yet) set Content-Length response header to the modified response body's length. So, remove Content-Length response header to avoid some bugs:
+
+  Header unset Content-Length
 
 For performances, it is better to handle only html pages containing the aimed form. So, you should place these directives in a container directive matching the form URL (as a <Location> directive), so as not to filter any html content.
 
 =head2 Filter request body
 
 When Apache receives a POST request from a client, it rewrites request POST body, replacing empty or fake data with secret data. This is done by the directive
+
   PerlInputFilterHandler  ReverseProxy::FormFiller::input
 
 For performances, it is better to handle only requests to the form "action" URL. So, you should place this directive in a container directive matching this URL (as a <Location> directive), so as not to filter any request.
@@ -295,18 +303,23 @@ Optional: if empty or not defined, jQuery is supposed to be already loaded in th
 
 jQuery selector to the form to fill.
 For example :
+
   form => "form#authForm",
 
 or
+
   form => "form:last",
 
 Optional: if empty or not defined, first form in web page will be filled - i.e.,
+
   form => "form:first",
 
 This field may rely on perl functions and Apache environment vars, e.g
+
   form => '(localtime)[2] >= 12 ? "#morningForm" : "#afternoonForm"',
 
 or
+
   form => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "#adminForm" : "#userForm"',
 
 =head2 submit
@@ -318,6 +331,7 @@ It may be "true" (autosubmit enabled), "false" (autosubmit disabled), or a jQuer
 Optional: if empty or not defined, autosubmit is disabled - that is, default value is "false".
 
 For example,
+
   submit => "true",
 
 or
@@ -332,6 +346,7 @@ Additionnaly, these fields will be controled in POST request when the form will 
 As same as "submit" and "form" parameters, field values can rely on perl functions and Apache environment vars.
 
 For example,
+
   publicFormData => {
     company  => "SnakeOilsInc",
     user     => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "admin" : "user"',
@@ -347,6 +362,7 @@ But all inputs
 Form fields to fill in request body, in addition or in overload to publicFormData. The main with between publicFormData is that these data will not be filled in the html form, so users can't see them.
 
 Field values can rely on perl functions and Apache environment vars.
+
   secretFormData => {
     password => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "admin-secret" : "user-secret"',
   },
