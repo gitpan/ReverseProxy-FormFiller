@@ -5,7 +5,6 @@ README
 lib/ReverseProxy/FormFiller.pm
 t/00-load.t
 t/manifest.t
-t/pod-coverage.t
 t/pod.t
 example/apache-vhost
 example/FormFillerConfig

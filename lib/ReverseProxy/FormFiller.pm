@@ -8,7 +8,7 @@ use Apache2::RequestRec;
 use Apache2::Log;
 use URI::Escape;
 
-our $VERSION = '0.2';
+our $VERSION = '0.3';
 
 my $globalParams;
 
@@ -35,10 +35,13 @@ sub getParams {
                 &logError($r, "$paramFile content doesn't seem to be a valid perl hash");
                 $globalParams->{$paramFile} = 0;
             } else {
-                $params->{form}   ||= 'form:first';
-                $params->{submit} ||= 'false';
-                $params->{secretFormData} ||= {};
-                $params->{publicFormData} ||= {};
+                $params->{form}       ||= 'form:first';
+                $params->{submit}     ||= 'false';
+                $params->{javascript} ||= '';
+                $params->{publicFormData}   ||= {};
+                $params->{publicFilledData} ||= {};
+                $params->{secretFormData}   ||= {};
+                $params->{postDataSub}      ||= [];
                 %{ $params->{secretFormData} } = (
                     %{ $params->{publicFormData} },
                     %{ $params->{secretFormData} }
@@ -64,6 +67,16 @@ sub js {
     while ( my ($name, $value) = each %{ $params->{publicFormData} } ) {
         eval "\$value = $value";
         $js .= "  form.find('input[name=$name], select[name=$name], textarea[name=$name]').val('$value')\n";
+    }
+    while ( my ($name, $value) = each %{ $params->{publicFilledData} } ) {
+        eval "\$value = $value";
+        $js .= "  form.find('$name').val('$value')\n";
+    }
+    if ($params->{javascript}) {
+      my $javascript = $params->{javascript};
+      $javascript =~ s/"/\\"/g;
+      eval "\$javascript = \"$javascript\"";
+      $js .= "$javascript\n";
     }
     $js .= $submit eq "true"  ? "  form.submit()\n"
          : $submit ne "false" ? "  form.find('$submit').click()\n"
@@ -129,6 +142,9 @@ sub input {
             $value = uri_escape $value;
             $body =~ s/$name=.*?((?:&|$))/$name=$value$1/;
         }
+        foreach my $sub ( @{ $params->{postDataSub} } ) {
+            eval "\$body =~ $sub";
+        }
         $f->print($body);
     }
     return Apache2::Const::OK;
@@ -143,7 +159,7 @@ ReverseProxy::FormFiller - Let Apache fill and submit any html form in place of 
 
 =head1 VERSION
 
-Version 0.2
+Version 0.3
 
 =head1 SYNOPSIS
 
@@ -238,6 +254,26 @@ Assume you have two authentication forms in the same page, one for the morning a
     login    => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "admin" : "user"',
     password => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "admin-secret" : "user-secret"',
   },
+
+=head2 Framework example
+
+Some applications based on frameworks either use HTTP without HTML (e.g Flash), or they send POST data out of any HTML form.
+
+This module allows to fill any HTML field from its jQuery selectors, thanks to the "publicFilledData" parameter.
+
+On the other hand, you can apply any substitution on POST datas, thanks to the "postDataSub" parameter - but it may require some tuning to get the right substitution PCRE.
+
+Here is an example from a real-life GWT application :
+  jQueryUrl => '//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js',
+  form      => 'body',
+  submit    => 'button.genericButton',
+  publicFilledData => {
+    'input.gwt-TextBox'         => 'jdoe',
+    'input.gwt-PasswordTextBox' => 'fake',
+  },
+  postDataSub => [
+    's/jdoe\|fake/jdoe\|secret/'
+  ]
 
 
 =head1 Details of Apache config
@@ -353,9 +389,26 @@ For example,
     password => "hidden"
   },
 
-Note that these data are filled through jQuery method '.val()', so it works only with text inputs, password inputs, select tags and textarea, but not with checkbox and radio buttons.
+Note that these data are filled through jQuery method '.val()', so it works only with text inputs, password inputs, select tags and textarea, but not with checkboxes and radio buttons. In order to select on radio buttons or check on checkboxes, look at the "javascript" parameter.
 
-But all inputs
+=head2 publicFilledData
+
+Input fields to fill, defined by jQuery selectors instead of their name attribute. This is useful if an input field has no name attribute.
+
+As same as publicFormData,
+* these data will be seen by users
+* field values can rely on perl functions and Apache environment vars
+* it works only with text inputs, password inputs, select tags and textarea.
+
+Unlike to publicFormData, these fields are note controled in POST request against malicious tampering of values.
+
+  publicFilledData => {
+    'textarea.company'     => "SnakeOilsInc",
+    'input#user'           => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "user" : $ENV{REMOTE_USER} =~ /dwho/ ? "admin" : "nobody"',
+    'input[type=password]' => "hidden"
+  }
+
+Parameters publicFormData and publicFilledData can be used together.
 
 =head2 secretFormData
 
@@ -366,6 +419,37 @@ Field values can rely on perl functions and Apache environment vars.
   secretFormData => {
     password => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "admin-secret" : "user-secret"',
   },
+
+=head2 postDataSub
+
+Substitutions to apply to POST datas. Substitutions are defined with PCRE; they may use captures and may rely on Apache environment vars.
+
+Parameter postDataSub is an array ref and not a hash ref (unlike to publicFormData, publicFilledData and secretFormData). Hence substitutions are applied in the order they are defined.
+
+Basic example:
+  postDataSub => [
+    's/foo/bar/gi',
+  ]
+
+If POST data are made of colon-separated values and you want to change 5th value into "foo":
+  postDataSub => [
+    's/^((.+?:){4}).+?:/$1:foo:/'  # if POST data are made of :-separated values and you want to change 5th value into "foo"
+  ]
+
+In order to rewrite POST data so as to force jdoe's password to "jdoe-secret" and rtyler's to "rtyler-passwd", whereas these passwords are disclosed - assume POST data is '[login]:[password]'
+  postDataSub => [
+    's/^.*$/$ENV{REMOTE_USER}:$ENV{REMOTE_USER}/',
+    's/jdoe:jdoe/jdoe:jdoe-secret/',
+    's/rtyler:rtyler/rtyler:rtyler-passwd/'
+  ]
+
+=head2 javascript
+
+Arbitrary javascript code to run after fields are filled, but before posting the form.
+
+This javascript code can rely on perl functions and Apache environment vars. If you call jQuery through its shortcut '$', you have to escape it. Use single quotes and double quotes as in the example.
+
+  javascript => 'alert("Hello $ENV{REMOTE_USER}"); \$(input.mycheckbox).prop("checked", true)'
 
 =head1 AUTHOR
 

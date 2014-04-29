@@ -9,6 +9,8 @@
 form      => "form:first",
 # may rely on perl functions and Apache environment vars, e.g
 #form      => '(localtime)[2] >= 12 ? "#morningForm" : "#afternoonForm"',
+# If the inputs/textareas/select markups do not belong to any form, you can set
+#form      => "body"
 
 # To enable form auto-submit, or to automatically click on a button
 # may be true (enabled), false (disabled), or a jQuery selector to the button to click on
@@ -22,12 +24,21 @@ submit    => "true",
 jQueryUrl => "",
 
 # Form fields to fill in response body - filled data will be seen by user
+# Hash keys refer to input/textarea/select's name attribute
 # Fields value can rely on perl functions and Apache environment vars
 publicFormData => {
     company  => "SnakeOilsInc",
     user     => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "user" : $ENV{REMOTE_USER} =~ /dwho/ ? "admin" : "nobody"',
     password => "hidden"
 },
+
+# Alternatively, if the inputs you want to fill in the html page
+# have no name attribute, you can define them with jQuery selectors
+#publicFilledData => {
+#    'textarea.company'     => "SnakeOilsInc",
+#    'input#user'           => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "user" : $ENV{REMOTE_USER} =~ /dwho/ ? "admin" : "nobody"',
+#    'input[type=password]' => "hidden"
+#},
 
 # Form fields to fill in request body - filled data will not be seen by user
 # Fields value can rely on perl functions and Apache environment vars
@@ -36,3 +47,15 @@ publicFormData => {
 secretFormData => {
     password => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "user-secret" : $ENV{REMOTE_USER} =~ /dwho/ ? "admin-secret" : ""',
 },
+
+# Alternatively, you can do substitutions on POST data
+#postDataSub => [
+#    's/foo/bar/',
+#    's/user:(.+?):password:[^:]+/user:$1:password:admin-secret/',
+#]
+
+# Arbitrary javascript code to run after fields are filled, but before posting the form
+# If you call jQuery through its shortcut '$', you have to escape it
+# Use single quotes and double quotes as in the following example
+#  javascript => 'alert("Hello $ENV{REMOTE_USER}"); \$(input.mycheckbox).prop("checked", true)'
+
