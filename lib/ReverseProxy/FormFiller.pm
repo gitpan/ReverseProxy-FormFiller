@@ -8,7 +8,7 @@ use Apache2::RequestRec;
 use Apache2::Log;
 use URI::Escape;
 
-our $VERSION = '0.3';
+our $VERSION = '0.3.1';
 
 my $globalParams;
 
@@ -60,22 +60,22 @@ sub getParams {
 sub js {
     my $params = shift;
     my ($form, $submit) = ($params->{form}, $params->{submit});
-    eval "\$form = $form";
-    eval "\$submit = $submit";
+    eval "\$form = '$form'";
+    eval "\$submit = '$submit'";
     my $js = "  var form = jQuery('$form')\n"
            . "  form.attr('autocomplete', 'off')\n";
     while ( my ($name, $value) = each %{ $params->{publicFormData} } ) {
-        eval "\$value = $value";
+        eval "\$value = '$value'";
         $js .= "  form.find('input[name=$name], select[name=$name], textarea[name=$name]').val('$value')\n";
     }
     while ( my ($name, $value) = each %{ $params->{publicFilledData} } ) {
-        eval "\$value = $value";
+        eval "\$value = '$value'";
         $js .= "  form.find('$name').val('$value')\n";
     }
     if ($params->{javascript}) {
       my $javascript = $params->{javascript};
       $javascript =~ s/"/\\"/g;
-      eval "\$javascript = \"$javascript\"";
+      eval "\$javascript = '$javascript'";
       $js .= "$javascript\n";
     }
     $js .= $submit eq "true"  ? "  form.submit()\n"
@@ -137,7 +137,7 @@ sub input {
     } else {
         $f->r->subprocess_env;
         while ( my ($name, $value) = each %{ $params->{secretFormData} } ) {
-            eval "\$value = $value";
+            eval "\$value = '$value'";
             $name  = uri_escape $name;
             $value = uri_escape $value;
             $body =~ s/$name=.*?((?:&|$))/$name=$value$1/;
@@ -159,7 +159,7 @@ ReverseProxy::FormFiller - Let Apache fill and submit any html form in place of 
 
 =head1 VERSION
 
-Version 0.3
+Version 0.3.1
 
 =head1 SYNOPSIS
 
@@ -264,6 +264,7 @@ This module allows to fill any HTML field from its jQuery selectors, thanks to t
 On the other hand, you can apply any substitution on POST datas, thanks to the "postDataSub" parameter - but it may require some tuning to get the right substitution PCRE.
 
 Here is an example from a real-life GWT application :
+
   jQueryUrl => '//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js',
   form      => 'body',
   submit    => 'button.genericButton',
@@ -499,7 +500,7 @@ L<http://search.cpan.org/dist/ReverseProxy-FormFiller/>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2013 FX Deltombe.
+Copyright 2013-2014 FX Deltombe.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
