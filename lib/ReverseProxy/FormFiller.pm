@@ -8,7 +8,7 @@ use Apache2::RequestRec;
 use Apache2::Log;
 use URI::Escape;
 
-our $VERSION = '0.3.1';
+our $VERSION = '0.4';
 
 my $globalParams;
 
@@ -159,7 +159,7 @@ ReverseProxy::FormFiller - Let Apache fill and submit any html form in place of 
 
 =head1 VERSION
 
-Version 0.3.1
+Version 0.4
 
 =head1 SYNOPSIS
 
