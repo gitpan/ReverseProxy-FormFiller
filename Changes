@@ -12,3 +12,6 @@ Revision history for ReverseProxy-FormFiller
 0.4    2014/09/24
         Fix bug with unquoted strings
 
+0.5    2014/10/02
+        Unfix bug with unquoted strings (was not a bug), improve POD
+

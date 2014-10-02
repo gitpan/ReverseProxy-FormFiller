@@ -6,15 +6,15 @@
 
 # jQuery selector to the form to fill
 # optional: if not defined, first form in web page will be filled
-form      => "form:first",
+form      => '"form:first"',
 # may rely on perl functions and Apache environment vars, e.g
 #form      => '(localtime)[2] >= 12 ? "#morningForm" : "#afternoonForm"',
 # If the inputs/textareas/select markups do not belong to any form, you can set
-#form      => "body"
+#form      => '"body"'
 
 # To enable form auto-submit, or to automatically click on a button
 # may be true (enabled), false (disabled), or a jQuery selector to the button to click on
-submit    => "true",
+submit    => '"true"',
 # may also rely on perl functions and Apache environment vars
 # optional, default value: false
 
@@ -27,17 +27,17 @@ jQueryUrl => "",
 # Hash keys refer to input/textarea/select's name attribute
 # Fields value can rely on perl functions and Apache environment vars
 publicFormData => {
-    company  => "SnakeOilsInc",
+    company  => '"SnakeOilsInc"',
     user     => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "user" : $ENV{REMOTE_USER} =~ /dwho/ ? "admin" : "nobody"',
-    password => "hidden"
+    password => '"hidden"'
 },
 
 # Alternatively, if the inputs you want to fill in the html page
 # have no name attribute, you can define them with jQuery selectors
 #publicFilledData => {
-#    'textarea.company'     => "SnakeOilsInc",
+#    'textarea.company'     => '"SnakeOilsInc"',
 #    'input#user'           => '$ENV{REMOTE_USER} =~ /(rtyler|msmith)/ ? "user" : $ENV{REMOTE_USER} =~ /dwho/ ? "admin" : "nobody"',
-#    'input[type=password]' => "hidden"
+#    'input[type=password]' => '"hidden"'
 #},
 
 # Form fields to fill in request body - filled data will not be seen by user
